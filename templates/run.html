@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="panel">
+    <div class="panel-header">
+      <h2>Run Scenario</h2>
+      <p>Jalankan tes untuk scenario: <strong>{{ scenario.title }}</strong></p>
+    </div>
+    <div class="panel-body">
+      <div class="run-meta">
+        <p><strong>Target URL:</strong> {{ scenario.target_url }}</p>
+        {% if scenario.description %}<p>{{ scenario.description }}</p>{% endif %}
+      </div>
+
+      <div class="form-block">
+        <label>Schema JSON</label>
+        <textarea id="schema-json" rows="10">{{ scenario.schema_json }}</textarea>
+      </div>
+
+      <div class="form-block">
+        <button class="button" type="button" onclick="renderSchemaFields()">Render Fields</button>
+        <button class="button secondary" type="button" onclick="autoFillFields()">Auto Fill</button>
+        <button class="button secondary" type="button" onclick="regenerateFields()">Regenerate</button>
+      </div>
+
+      <form action="/run/{{ scenario.id }}" method="post" id="run-form" onsubmit="prepareRunPayload()">
+        <div id="field-container"></div>
+        <input type="hidden" name="values_json" id="values-json" />
+        <div class="form-actions">
+          <button class="button primary" type="submit">Run Test</button>
+          <a class="button secondary" href="/">Back</a>
+        </div>
+      </form>
+
+      {% if result %}
+        <div class="result-card {% if result.status == 'passed' %}success{% else %}danger{% endif %}">
+          <h3>Result</h3>
+          <p>Status: {{ result.status }}</p>
+          {% if result.duration %}<p>Duration: {{ result.duration }}s</p>{% endif %}
+
+          {% if result.filled_screenshot %}
+            <div class="screenshot-section">
+              <h4>Form Filled (Before Submit)</h4>
+              <img src="/results/{{ result.filled_screenshot }}" alt="Form filled screenshot" class="result-screenshot" />
+            </div>
+          {% endif %}
+
+          {% if result.submitted_screenshot %}
+            <div class="screenshot-section">
+              <h4>After Submit</h4>
+              <img src="/results/{{ result.submitted_screenshot }}" alt="Form submitted screenshot" class="result-screenshot" />
+            </div>
+          {% endif %}
+
+          {% if result.message %}<p>{{ result.message }}</p>{% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="panel">
+    <div class="panel-header">
+      <h2>Test Scenarios</h2>
+      <p>List semua skenario tes yang tersimpan di memori.</p>
+    </div>
+    <div class="panel-body">
+      {% if scenarios %}
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Target URL</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for scenario in scenarios %}
+              <tr>
+                <td>{{ scenario.title }}</td>
+                <td>{{ scenario.target_url }}</td>
+                <td>
+                  <a class="button small" href="/edit/{{ scenario.id }}">Edit</a>
+                  <a class="button small" href="/run/{{ scenario.id }}">Run</a>
+                  <form class="inline-form" action="/delete/{{ scenario.id }}" method="post">
+                    <button class="button small danger" type="submit">Delete</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p>Tidak ada scenario. Silakan buat scenario baru.</p>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="panel">
+    <div class="panel-header">
+      <h2>Create Scenario</h2>
+      <p>Buat scenario baru dengan JSON schema form dan opsi login.</p>
+    </div>
+    <div class="panel-body">
+      {% if errors %}
+        <div class="alert danger">
+          <ul>
+            {% for error in errors %}
+              <li>{{ error }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+      <form action="/create" method="post" id="scenario-form">
+        <label>Title</label>
+        <input type="text" name="title" value="{{ scenario.title if scenario else '' }}" required />
+
+        <label>Description</label>
+        <textarea name="description">{{ scenario.description if scenario else '' }}</textarea>
+
+        <label>Target URL</label>
+        <input type="url" name="target_url" value="{{ scenario.target_url if scenario else '' }}" required />
+
+        <label>Schema JSON</label>
+        <textarea name="schema_json" id="schema-json" rows="10">{{ scenario.schema_json if scenario else '[]' }}</textarea>
+
+        <button class="button" type="button" onclick="detectFieldsFromUrl()">Detect fields from URL</button>
+
+        <label>Requires Login</label>
+        <select name="requires_login">
+          <option value="none" {% if not scenario or scenario.requires_login == "none" %}selected{% endif %}>No Login Required</option>
+          <option value="login" {% if scenario and scenario.requires_login == "login" %}selected{% endif %}>General Login</option>
+          <option value="email" {% if scenario and scenario.requires_login == "email" %}selected{% endif %}>Email Login</option>
+          <option value="password" {% if scenario and scenario.requires_login == "password" %}selected{% endif %}>Password Only</option>
+        </select>
+
+        <label>Login URL</label>
+        <input type="url" name="login_url" value="{{ scenario.login_url if scenario else '' }}" />
+
+        <label>Username Field Name</label>
+        <input type="text" name="login_username_field" value="{{ scenario.login_username_field if scenario else '' }}" />
+
+        <label>Email Field Name</label>
+        <input type="text" name="login_email_field" value="{{ scenario.login_email_field if scenario else '' }}" />
+
+        <label>Password Field Name</label>
+        <input type="text" name="login_password_field" value="{{ scenario.login_password_field if scenario else '' }}" />
+
+        <label>Login Username</label>
+        <input type="text" name="login_username" value="{{ scenario.login_username if scenario else '' }}" />
+
+        <label>Login Email</label>
+        <input type="email" name="login_email" value="{{ scenario.login_email if scenario else '' }}" />
+
+        <label>Login Password</label>
+        <input type="password" name="login_password" value="{{ scenario.login_password if scenario else '' }}" />
+
+        <div class="form-actions">
+          <button class="button primary" type="submit">Save Scenario</button>
+          <a class="button secondary" href="/">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </section>
+{% endblock %}
