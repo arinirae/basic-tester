@@ -55,7 +55,218 @@ BROWSER_LAUNCH_ARGS = [
 USE_SYNC_MODE = False
 
 
-def detect_form_fields_sync(url: str) -> List[Dict[str, Any]]:
+def _handle_login_for_test_sync(page, login_config: Dict[str, Any]) -> None:
+    """Handle login process for test execution (sync version)"""
+    logger.info("Handling login process for test execution (sync)...")
+    
+    login_url = login_config.get("login_url")
+    if not login_url:
+        logger.warning("No login URL provided for test execution")
+        return
+        
+    username_field = login_config.get("login_username_field")
+    email_field = login_config.get("login_email_field") 
+    password_field = login_config.get("login_password_field")
+    username = login_config.get("login_username")
+    email = login_config.get("login_email")
+    password = login_config.get("login_password")
+    
+    if not (((username_field and username) or (email_field and email)) and password_field and password):
+        logger.warning("Incomplete login credentials for test execution")
+        return
+    
+    # Navigate to login page
+    logger.info(f"Navigating to login URL: {login_url}")
+    page.goto(login_url, wait_until='domcontentloaded', timeout=90000)
+    page.wait_for_timeout(3000)
+    
+    # Fill login credentials
+    if username_field and username:
+        try:
+            page.fill(f'input[name="{username_field}"]', username)
+            logger.info(f"Filled username field: {username_field}")
+        except Exception as e:
+            logger.warning(f"Could not fill username field {username_field}: {e}")
+    
+    if email_field and email:
+        try:
+            page.fill(f'input[name="{email_field}"]', email)
+            logger.info(f"Filled email field: {email_field}")
+        except Exception as e:
+            logger.warning(f"Could not fill email field {email_field}: {e}")
+    
+    if password_field and password:
+        try:
+            page.fill(f'input[name="{password_field}"]', password)
+            logger.info(f"Filled password field: {password_field}")
+        except Exception as e:
+            logger.warning(f"Could not fill password field {password_field}: {e}")
+    
+    # Try to submit the login form with improved button detection
+    try:
+        # Look for submit button and click it
+        submit_selectors = [
+            'button[type="submit"]',
+            'input[type="submit"]',
+            'input[type="button"]',
+            'button[class*="btnLogin"]',
+            'button[id*="btnLogOn"]',
+            'button[id*="btnLog"]',
+            'input[id*="btnSave"]',
+            'button:contains("Login")',
+            'button:contains("Sign In")',
+            'button:contains("Log In")',
+            'input[value*="login" i]',
+            'input[value*="sign in" i]',
+            'input[value*="log in" i]',
+            'button[class*="login"]',
+            'button[class*="signin"]',
+            'input[class*="login"]',
+            'input[class*="signin"]'
+        ]
+        
+        submit_clicked = False
+        for selector in submit_selectors:
+            try:
+                if selector.startswith('button:contains') or selector.startswith('input[value*='):
+                    # Handle text-based selectors
+                    if selector.startswith('button:contains'):
+                        text = selector.split('"')[1]
+                        page.click(f'button:has-text("{text}")', timeout=5000)
+                    else:
+                        value_pattern = selector.split('"')[1]
+                        page.click(f'input[value*="{value_pattern}" i]', timeout=5000)
+                else:
+                    page.click(selector, timeout=5000)
+                submit_clicked = True
+                logger.info(f"Clicked login submit button with selector: {selector}")
+                break
+            except:
+                continue
+        
+        if submit_clicked:
+            # Wait for navigation or page change after login
+            page.wait_for_timeout(5000)
+            
+            # Try to detect if login was successful by checking if we're still on login page
+            current_url = page.url
+            if login_url in current_url or "login" in current_url.lower():
+                logger.warning("Login may have failed - still on login page")
+                # Try alternative submission method
+                try:
+                    page.evaluate("() => document.querySelector('form')?.submit()")
+                    page.wait_for_timeout(3000)
+                    logger.info("Tried form.submit() as fallback")
+                except Exception as e:
+                    logger.warning(f"Form submit fallback failed: {e}")
+            else:
+                logger.info("Login appears successful - navigated away from login page")
+        else:
+            logger.warning("Could not find login submit button, trying form.submit()")
+            try:
+                page.evaluate("() => document.querySelector('form')?.submit()")
+                page.wait_for_timeout(3000)
+            except Exception as e:
+                logger.warning(f"Form submit failed: {e}")
+                
+    except Exception as e:
+        logger.warning(f"Login submission failed: {e}")
+
+
+def _handle_login_sync(page, login_config: Dict[str, Any]) -> None:
+    """Handle login process before field detection (sync version)"""
+    logger.info("Handling login process (sync)...")
+    
+    login_url = login_config.get("login_url")
+    if login_url and login_url != page.url:
+        logger.info(f"Navigating to login URL: {login_url}")
+        page.goto(login_url, wait_until='domcontentloaded', timeout=90000)
+        page.wait_for_timeout(2000)
+    
+    # Fill login credentials
+    login_fields = []
+    
+    # Handle username field
+    username_field = login_config.get("login_username_field")
+    username_value = login_config.get("login_username")
+    if username_field and username_value:
+        login_fields.append((username_field, username_value))
+    
+    # Handle email field  
+    email_field = login_config.get("login_email_field")
+    email_value = login_config.get("login_email")
+    if email_field and email_value:
+        login_fields.append((email_field, email_value))
+    
+    # Handle password field
+    password_field = login_config.get("login_password_field")
+    password_value = login_config.get("login_password")
+    if password_field and password_value:
+        login_fields.append((password_field, password_value))
+    
+    # Fill the fields
+    for field_name, field_value in login_fields:
+        try:
+            selector = f'input[name="{field_name}"]'
+            page.fill(selector, field_value)
+            logger.info(f"Filled {field_name} field (sync)")
+        except Exception as e:
+            logger.warning(f"Could not fill {field_name} field (sync): {e}")
+    
+    # Try to submit the login form
+    try:
+        # Look for submit button and click it
+        submit_selectors = [
+            'button[type="submit"]',
+            'input[type="submit"]',
+            'input[type="button"]',
+            'button[class*="btnLogin"]',
+            'button[id*="btnLogOn"]',
+            'button[id*="btnLog"]',
+            'input[id*="btnSave"]',
+            'button:contains("Login")',
+            'button:contains("Sign In")',
+            'button:contains("Log In")',
+            'input[value*="login" i]',
+            'input[value*="sign in" i]',
+            'input[value*="log in" i]',
+            'button[class*="login"]',
+            'button[class*="signin"]',
+            'input[class*="login"]',
+            'input[class*="signin"]'
+        ]
+        
+        submit_clicked = False
+        for selector in submit_selectors:
+            try:
+                if selector.startswith('button:contains') or selector.startswith('input[value*='):
+                    # Handle text-based selectors
+                    if selector.startswith('button:contains'):
+                        text = selector.split('"')[1]
+                        page.click(f'button:has-text("{text}")', timeout=5000)
+                    else:
+                        value_pattern = selector.split('"')[1]
+                        page.click(f'input[value*="{value_pattern}" i]', timeout=5000)
+                else:
+                    page.click(selector, timeout=5000)
+                submit_clicked = True
+                logger.info("Clicked login submit button (sync)")
+                break
+            except:
+                continue
+        
+        if submit_clicked:
+            # Wait for navigation or page change
+            page.wait_for_timeout(5000)
+            logger.info("Login process completed (sync)")
+        else:
+            logger.warning("Could not find login submit button (sync)")
+            
+    except Exception as e:
+        logger.warning(f"Login submission failed (sync): {e}")
+
+
+def detect_form_fields_sync(url: str, login_config: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """Synchronous fallback for form field detection"""
     from playwright.sync_api import sync_playwright
 
@@ -73,6 +284,11 @@ def detect_form_fields_sync(url: str) -> List[Dict[str, Any]]:
             )
             logger.info(f"Navigating to {url} (sync)...")
             page.goto(url, wait_until='domcontentloaded', timeout=90000)
+            
+            # Handle login if required
+            if login_config:
+                _handle_login_sync(page, login_config)
+            
             page.wait_for_timeout(3000)
             try:
                 logger.info("Waiting for form elements (sync)...")
@@ -112,7 +328,218 @@ RESULTS_DIR = ROOT_DIR / "test_results"
 RESULTS_DIR.mkdir(exist_ok=True)
 
 
-async def detect_form_fields(url: str) -> List[Dict[str, Any]]:
+async def _handle_login_for_test(page: Page, login_config: Dict[str, Any]) -> None:
+    """Handle login process for test execution - login first, then navigate to target URL"""
+    logger.info("Handling login process for test execution...")
+    
+    login_url = login_config.get("login_url")
+    if not login_url:
+        logger.warning("No login URL provided for test execution")
+        return
+        
+    username_field = login_config.get("login_username_field")
+    email_field = login_config.get("login_email_field") 
+    password_field = login_config.get("login_password_field")
+    username = login_config.get("login_username")
+    email = login_config.get("login_email")
+    password = login_config.get("login_password")
+    
+    if not (((username_field and username) or (email_field and email)) and password_field and password):
+        logger.warning("Incomplete login credentials for test execution")
+        return
+    
+    # Navigate to login page
+    logger.info(f"Navigating to login URL: {login_url}")
+    await page.goto(login_url, wait_until='domcontentloaded', timeout=90000)
+    await page.wait_for_timeout(3000)
+    
+    # Fill login credentials
+    if username_field and username:
+        try:
+            await page.fill(f'input[name="{username_field}"]', username)
+            logger.info(f"Filled username field: {username_field}")
+        except Exception as e:
+            logger.warning(f"Could not fill username field {username_field}: {e}")
+    
+    if email_field and email:
+        try:
+            await page.fill(f'input[name="{email_field}"]', email)
+            logger.info(f"Filled email field: {email_field}")
+        except Exception as e:
+            logger.warning(f"Could not fill email field {email_field}: {e}")
+    
+    if password_field and password:
+        try:
+            await page.fill(f'input[name="{password_field}"]', password)
+            logger.info(f"Filled password field: {password_field}")
+        except Exception as e:
+            logger.warning(f"Could not fill password field {password_field}: {e}")
+    
+    # Try to submit the login form with improved button detection
+    try:
+        # Look for submit button and click it
+        submit_selectors = [
+            'button[type="submit"]',
+            'input[type="submit"]',
+            'input[type="button"]',
+            'button[class*="btnLogin"]',
+            'button[id*="btnLogOn"]',
+            'button[id*="btnLog"]',
+            'input[id*="btnSave"]',
+            'button:contains("Login")',
+            'button:contains("Sign In")',
+            'button:contains("Log In")',
+            'input[value*="login" i]',
+            'input[value*="sign in" i]',
+            'input[value*="log in" i]',
+            'button[class*="login"]',
+            'button[class*="signin"]',
+            'input[class*="login"]',
+            'input[class*="signin"]'
+        ]
+        
+        submit_clicked = False
+        for selector in submit_selectors:
+            try:
+                if selector.startswith('button:contains') or selector.startswith('input[value*='):
+                    # Handle text-based selectors
+                    if selector.startswith('button:contains'):
+                        text = selector.split('"')[1]
+                        await page.click(f'button:has-text("{text}")', timeout=5000)
+                    else:
+                        value_pattern = selector.split('"')[1]
+                        await page.click(f'input[value*="{value_pattern}" i]', timeout=5000)
+                else:
+                    await page.click(selector, timeout=5000)
+                submit_clicked = True
+                logger.info(f"Clicked login submit button with selector: {selector}")
+                break
+            except:
+                continue
+        
+        if submit_clicked:
+            # Wait for navigation or page change after login
+            await page.wait_for_timeout(5000)
+            
+            # Try to detect if login was successful by checking if we're still on login page
+            current_url = page.url
+            if login_url in current_url or "login" in current_url.lower():
+                logger.warning("Login may have failed - still on login page")
+                # Try alternative submission method
+                try:
+                    await page.evaluate("() => document.querySelector('form')?.submit()")
+                    await page.wait_for_timeout(3000)
+                    logger.info("Tried form.submit() as fallback")
+                except Exception as e:
+                    logger.warning(f"Form submit fallback failed: {e}")
+            else:
+                logger.info("Login appears successful - navigated away from login page")
+        else:
+            logger.warning("Could not find login submit button, trying form.submit()")
+            try:
+                await page.evaluate("() => document.querySelector('form')?.submit()")
+                await page.wait_for_timeout(3000)
+            except Exception as e:
+                logger.warning(f"Form submit failed: {e}")
+                
+    except Exception as e:
+        logger.warning(f"Login submission failed: {e}")
+
+
+async def _handle_login(page: Page, login_config: Dict[str, Any]) -> None:
+    """Handle login process before field detection"""
+    logger.info("Handling login process...")
+    
+    login_url = login_config.get("login_url")
+    if login_url and login_url != page.url:
+        logger.info(f"Navigating to login URL: {login_url}")
+        await page.goto(login_url, wait_until='domcontentloaded', timeout=90000)
+        await page.wait_for_timeout(2000)
+    
+    # Fill login credentials
+    login_fields = []
+    
+    # Handle username field
+    username_field = login_config.get("login_username_field")
+    username_value = login_config.get("login_username")
+    if username_field and username_value:
+        login_fields.append((username_field, username_value))
+    
+    # Handle email field  
+    email_field = login_config.get("login_email_field")
+    email_value = login_config.get("login_email")
+    if email_field and email_value:
+        login_fields.append((email_field, email_value))
+    
+    # Handle password field
+    password_field = login_config.get("login_password_field")
+    password_value = login_config.get("login_password")
+    if password_field and password_value:
+        login_fields.append((password_field, password_value))
+    
+    # Fill the fields
+    for field_name, field_value in login_fields:
+        try:
+            selector = f'input[name="{field_name}"]'
+            await page.fill(selector, field_value)
+            logger.info(f"Filled {field_name} field")
+        except Exception as e:
+            logger.warning(f"Could not fill {field_name} field: {e}")
+    
+    # Try to submit the login form
+    try:
+        # Look for submit button and click it
+        submit_selectors = [
+            'button[type="submit"]',
+            'input[type="submit"]',
+            'input[type="button"]',
+            'button[class*="btnLogin"]',
+            'button[id*="btnLogOn"]',
+            'button[id*="btnLog"]',
+            'input[id*="btnSave"]',
+            'button:contains("Login")',
+            'button:contains("Sign In")',
+            'button:contains("Log In")',
+            'input[value*="login" i]',
+            'input[value*="sign in" i]',
+            'input[value*="log in" i]',
+            'button[class*="login"]',
+            'button[class*="signin"]',
+            'input[class*="login"]',
+            'input[class*="signin"]'
+        ]
+        
+        submit_clicked = False
+        for selector in submit_selectors:
+            try:
+                if selector.startswith('button:contains') or selector.startswith('input[value*='):
+                    # Handle text-based selectors
+                    if selector.startswith('button:contains'):
+                        text = selector.split('"')[1]
+                        await page.click(f'button:has-text("{text}")', timeout=5000)
+                    else:
+                        value_pattern = selector.split('"')[1]
+                        await page.click(f'input[value*="{value_pattern}" i]', timeout=5000)
+                else:
+                    await page.click(selector, timeout=5000)
+                submit_clicked = True
+                logger.info("Clicked login submit button")
+                break
+            except:
+                continue
+        
+        if submit_clicked:
+            # Wait for navigation or page change
+            await page.wait_for_timeout(5000)
+            logger.info("Login process completed")
+        else:
+            logger.warning("Could not find login submit button")
+            
+    except Exception as e:
+        logger.warning(f"Login submission failed: {e}")
+
+
+async def detect_form_fields(url: str, login_config: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     logger.info(f"Starting form field detection for URL: {url}")
     try:
         async with async_playwright() as p:
@@ -127,6 +554,11 @@ async def detect_form_fields(url: str) -> List[Dict[str, Any]]:
             )
             logger.info(f"Navigating to {url}...")
             await page.goto(url, wait_until='domcontentloaded', timeout=90000)
+            
+            # Handle login if required
+            if login_config:
+                await _handle_login(page, login_config)
+            
             await page.wait_for_timeout(3000)
             try:
                 logger.info("Waiting for form elements...")
@@ -160,7 +592,7 @@ async def detect_form_fields(url: str) -> List[Dict[str, Any]]:
         logger.warning(f"Async mode failed, trying sync mode: {e}")
         loop = asyncio.get_running_loop()
         try:
-            return await loop.run_in_executor(None, detect_form_fields_sync, url)
+            return await loop.run_in_executor(None, detect_form_fields_sync, url, login_config)
         except Exception as sync_e:
             logger.error(f"Both async and sync modes failed. Async error: {e}, Sync error: {sync_e}")
             raise sync_e
@@ -211,27 +643,7 @@ def run_test_scenario_sync(
             )
 
             if login_config:
-                login_url = login_config.get("login_url")
-                username_field = login_config.get("login_username_field")
-                email_field = login_config.get("login_email_field")
-                password_field = login_config.get("login_password_field")
-                username = login_config.get("login_username")
-                email = login_config.get("login_email")
-                password = login_config.get("login_password")
-                if login_url and ((username_field and username) or (email_field and email)) and password_field and password:
-                    logger.info(f"Navigating to login URL: {login_url} (sync)")
-                    page.goto(login_url, wait_until='domcontentloaded', timeout=90000)
-                    page.wait_for_timeout(3000)
-                    if username_field and username:
-                        page.fill(f'input[name="{username_field}"]', username)
-                    if email_field and email:
-                        page.fill(f'input[name="{email_field}"]', email)
-                    page.fill(f'input[name="{password_field}"]', password)
-                    try:
-                        page.click('button[type="submit"], input[type="submit"]')
-                    except Exception:
-                        page.evaluate("() => document.querySelector('form')?.submit()")
-                    page.wait_for_timeout(1500)
+                _handle_login_for_test_sync(page, login_config)
 
             logger.info(f"Navigating to target URL: {target_url} (sync)")
             page.goto(target_url, wait_until='domcontentloaded', timeout=90000)
@@ -314,26 +726,7 @@ async def run_test_scenario(
             )
 
             if login_config:
-                login_url = login_config.get("login_url")
-                username_field = login_config.get("login_username_field")
-                email_field = login_config.get("login_email_field")
-                password_field = login_config.get("login_password_field")
-                username = login_config.get("login_username")
-                email = login_config.get("login_email")
-                password = login_config.get("login_password")
-                if login_url and ((username_field and username) or (email_field and email)) and password_field and password:
-                    await page.goto(login_url, wait_until='domcontentloaded', timeout=90000)
-                    await page.wait_for_timeout(3000)
-                    if username_field and username:
-                        await page.fill(f'input[name="{username_field}"]', username)
-                    if email_field and email:
-                        await page.fill(f'input[name="{email_field}"]', email)
-                    await page.fill(f'input[name="{password_field}"]', password)
-                    try:
-                        await page.click('button[type="submit"], input[type="submit"]')
-                    except Exception:
-                        await page.evaluate("() => document.querySelector('form')?.submit()")
-                    await page.wait_for_timeout(1500)
+                await _handle_login_for_test(page, login_config)
 
             await page.goto(target_url, wait_until='domcontentloaded', timeout=90000)
             await page.wait_for_timeout(3000)

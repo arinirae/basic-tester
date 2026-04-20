@@ -65,7 +65,7 @@ def create_submit(
         description=description.strip() or None,
         target_url=target_url.strip(),
         schema_json=schema_json.strip() or "[]",
-        requires_login=requires_login,
+        requires_login=requires_login == "true",
         login_url=login_url.strip() or None,
         login_username_field=login_username_field.strip() or None,
         login_email_field=login_email_field.strip() or None,
@@ -129,7 +129,7 @@ def edit_submit(
         description=description.strip() or None,
         target_url=target_url.strip(),
         schema_json=schema_json.strip() or "[]",
-        requires_login=requires_login,
+        requires_login=requires_login == "true",
         login_url=login_url.strip() or None,
         login_username_field=login_username_field.strip() or None,
         login_email_field=login_email_field.strip() or None,
@@ -180,7 +180,7 @@ async def run_submit(request: Request, scenario_id: int, values_json: str = Form
         values = {}
 
     login_config = None
-    if scenario.requires_login != "none":
+    if scenario.requires_login:
         login_config = {
             "login_url": scenario.login_url,
             "login_username_field": scenario.login_username_field,
@@ -220,8 +220,24 @@ async def api_detect_fields(payload: dict):
     url = payload.get("url")
     if not url:
         return JSONResponse({"error": "URL is required."}, status_code=400)
+    
+    # Check if login is required
+    requires_login = payload.get("requires_login", False)
+    login_config = None
+    
+    if requires_login:
+        login_config = {
+            "login_url": payload.get("login_url"),
+            "login_username_field": payload.get("login_username_field"),
+            "login_email_field": payload.get("login_email_field"), 
+            "login_password_field": payload.get("login_password_field"),
+            "login_username": payload.get("login_username"),
+            "login_email": payload.get("login_email"),
+            "login_password": payload.get("login_password"),
+        }
+    
     try:
-        fields = await detect_form_fields(url)
+        fields = await detect_form_fields(url, login_config)
         return JSONResponse({"fields": fields})
     except Exception as exc:
         import logging

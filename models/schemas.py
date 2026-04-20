@@ -2,14 +2,6 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from enum import Enum
-
-
-class LoginType(str, Enum):
-    NONE = "none"
-    LOGIN = "login"
-    EMAIL = "email"
-    PASSWORD = "password"
 
 
 class FieldSchema(BaseModel):
@@ -27,7 +19,7 @@ class TestScenario(BaseModel):
     description: Optional[str] = None
     target_url: str
     schema_json: str = "[]"
-    requires_login: LoginType = LoginType.NONE
+    requires_login: bool = False
     login_url: Optional[str] = None
     login_username_field: Optional[str] = None
     login_email_field: Optional[str] = None

@@ -31,12 +31,7 @@
         <button class="button" type="button" onclick="detectFieldsFromUrl()">Detect fields from URL</button>
 
         <label>Requires Login</label>
-        <select name="requires_login">
-          <option value="none" {% if not scenario or scenario.requires_login == "none" %}selected{% endif %}>No Login Required</option>
-          <option value="login" {% if scenario and scenario.requires_login == "login" %}selected{% endif %}>General Login</option>
-          <option value="email" {% if scenario and scenario.requires_login == "email" %}selected{% endif %}>Email Login</option>
-          <option value="password" {% if scenario and scenario.requires_login == "password" %}selected{% endif %}>Password Only</option>
-        </select>
+        <input type="checkbox" name="requires_login" value="true" {% if scenario and scenario.requires_login %}checked{% endif %} />
 
         <label>Login URL</label>
         <input type="url" name="login_url" value="{{ scenario.login_url if scenario else '' }}" />

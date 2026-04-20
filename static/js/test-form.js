@@ -174,11 +174,32 @@ async function detectFieldsFromUrl() {
     return;
   }
 
+  // Collect login configuration if login is required
+  const requiresLoginCheckbox = document.querySelector('input[name="requires_login"]');
+  const requiresLogin = requiresLoginCheckbox && requiresLoginCheckbox.checked;
+  
+  const loginConfig = {};
+  if (requiresLogin) {
+    loginConfig.requires_login = true;
+    loginConfig.login_url = document.querySelector('input[name="login_url"]')?.value || '';
+    loginConfig.login_username_field = document.querySelector('input[name="login_username_field"]')?.value || '';
+    loginConfig.login_email_field = document.querySelector('input[name="login_email_field"]')?.value || '';
+    loginConfig.login_password_field = document.querySelector('input[name="login_password_field"]')?.value || '';
+    loginConfig.login_username = document.querySelector('input[name="login_username"]')?.value || '';
+    loginConfig.login_email = document.querySelector('input[name="login_email"]')?.value || '';
+    loginConfig.login_password = document.querySelector('input[name="login_password"]')?.value || '';
+  }
+
+  const payload = {
+    url: targetInput.value,
+    ...loginConfig
+  };
+
   try {
     const response = await fetch('/api/detect-fields', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({url: targetInput.value}),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -187,9 +208,9 @@ async function detectFieldsFromUrl() {
       return;
     }
 
-    const payload = await response.json();
+    const data = await response.json();
     const schemaTextarea = document.getElementById('schema-json');
-    schemaTextarea.value = JSON.stringify(payload.fields || [], null, 2);
+    schemaTextarea.value = JSON.stringify(data.fields || [], null, 2);
   } finally {
     setLoading(button, false);
   }
