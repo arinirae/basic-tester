@@ -30,6 +30,7 @@ BROWSER_LAUNCH_ARGS = [
     '--disable-accelerated-2d-canvas',
     '--disable-gpu',
     '--disable-software-rasterizer',
+    '--disable-web-security',
     '--disable-background-networking',
     '--disable-background-timer-throttling',
     '--disable-backgrounding-occluded-windows',
@@ -37,7 +38,7 @@ BROWSER_LAUNCH_ARGS = [
     '--disable-client-side-phishing-detection',
     '--disable-default-apps',
     '--disable-extensions',
-    '--disable-features=site-per-process',
+    '--disable-features=IsolateOrigins,site-per-process',
     '--disable-hang-monitor',
     '--disable-popup-blocking',
     '--disable-prompt-on-repost',
@@ -71,7 +72,8 @@ def detect_form_fields_sync(url: str) -> List[Dict[str, Any]]:
                 )
             )
             logger.info(f"Navigating to {url} (sync)...")
-            page.goto(url, wait_until='networkidle', timeout=60000)
+            page.goto(url, wait_until='domcontentloaded', timeout=90000)
+            page.wait_for_timeout(3000)
             try:
                 logger.info("Waiting for form elements (sync)...")
                 page.wait_for_selector('input, textarea, select', timeout=15000)
@@ -124,7 +126,8 @@ async def detect_form_fields(url: str) -> List[Dict[str, Any]]:
                 )
             )
             logger.info(f"Navigating to {url}...")
-            await page.goto(url, wait_until='networkidle', timeout=60000)
+            await page.goto(url, wait_until='domcontentloaded', timeout=90000)
+            await page.wait_for_timeout(3000)
             try:
                 logger.info("Waiting for form elements...")
                 await page.wait_for_selector('input, textarea, select', timeout=15000)
@@ -217,7 +220,8 @@ def run_test_scenario_sync(
                 password = login_config.get("login_password")
                 if login_url and ((username_field and username) or (email_field and email)) and password_field and password:
                     logger.info(f"Navigating to login URL: {login_url} (sync)")
-                    page.goto(login_url, wait_until='networkidle', timeout=60000)
+                    page.goto(login_url, wait_until='domcontentloaded', timeout=90000)
+                    page.wait_for_timeout(3000)
                     if username_field and username:
                         page.fill(f'input[name="{username_field}"]', username)
                     if email_field and email:
@@ -230,7 +234,7 @@ def run_test_scenario_sync(
                     page.wait_for_timeout(1500)
 
             logger.info(f"Navigating to target URL: {target_url} (sync)")
-            page.goto(target_url, wait_until='networkidle', timeout=60000)
+            page.goto(target_url, wait_until='domcontentloaded', timeout=90000)
 
             for name, value in values.items():
                 field = {"name": name, "type": "text"}
@@ -318,7 +322,8 @@ async def run_test_scenario(
                 email = login_config.get("login_email")
                 password = login_config.get("login_password")
                 if login_url and ((username_field and username) or (email_field and email)) and password_field and password:
-                    await page.goto(login_url, wait_until='networkidle', timeout=60000)
+                    await page.goto(login_url, wait_until='domcontentloaded', timeout=90000)
+                    await page.wait_for_timeout(3000)
                     if username_field and username:
                         await page.fill(f'input[name="{username_field}"]', username)
                     if email_field and email:
@@ -330,7 +335,8 @@ async def run_test_scenario(
                         await page.evaluate("() => document.querySelector('form')?.submit()")
                     await page.wait_for_timeout(1500)
 
-            await page.goto(target_url, wait_until='networkidle', timeout=60000)
+            await page.goto(target_url, wait_until='domcontentloaded', timeout=90000)
+            await page.wait_for_timeout(3000)
 
             for name, value in values.items():
                 field = {"name": name, "type": "text"}
