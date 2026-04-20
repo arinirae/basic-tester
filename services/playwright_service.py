@@ -23,6 +23,32 @@ if platform.system() == "Windows":
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+BROWSER_LAUNCH_ARGS = [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
+    '--disable-accelerated-2d-canvas',
+    '--disable-gpu',
+    '--disable-background-networking',
+    '--disable-background-timer-throttling',
+    '--disable-backgrounding-occluded-windows',
+    '--disable-breakpad',
+    '--disable-client-side-phishing-detection',
+    '--disable-default-apps',
+    '--disable-extensions',
+    '--disable-features=site-per-process',
+    '--disable-hang-monitor',
+    '--disable-popup-blocking',
+    '--disable-prompt-on-repost',
+    '--disable-sync',
+    '--metrics-recording-only',
+    '--mute-audio',
+    '--no-first-run',
+    '--no-zygote',
+    '--safebrowsing-disable-auto-update',
+    '--single-process',
+]
+
 # Global flag to track if we should use sync mode
 USE_SYNC_MODE = False
 
@@ -35,7 +61,7 @@ def detect_form_fields_sync(url: str) -> List[Dict[str, Any]]:
     try:
         with sync_playwright() as p:
             logger.info("Launching browser (sync)...")
-            browser = p.chromium.launch()
+            browser = p.chromium.launch(headless=True, args=BROWSER_LAUNCH_ARGS)
             logger.info("Creating new page (sync)...")
             page = browser.new_page(
                 user_agent=(
@@ -88,7 +114,7 @@ async def detect_form_fields(url: str) -> List[Dict[str, Any]]:
     try:
         async with async_playwright() as p:
             logger.info("Launching browser...")
-            browser = await p.chromium.launch()
+            browser = await p.chromium.launch(headless=True, args=BROWSER_LAUNCH_ARGS)
             logger.info("Creating new page...")
             page = await browser.new_page(
                 user_agent=(
@@ -171,7 +197,7 @@ def run_test_scenario_sync(
     try:
         with sync_playwright() as p:
             logger.info("Launching browser (sync)...")
-            browser = p.chromium.launch()
+            browser = p.chromium.launch(headless=True, args=BROWSER_LAUNCH_ARGS)
             logger.info("Creating new page (sync)...")
             page = browser.new_page(
                 user_agent=(
@@ -274,7 +300,7 @@ async def run_test_scenario(
     start_time = time.perf_counter()
     try:
         async with async_playwright() as p:
-            browser = await p.chromium.launch()
+            browser = await p.chromium.launch(headless=True, args=BROWSER_LAUNCH_ARGS)
             page = await browser.new_page(
                 user_agent=(
                     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
